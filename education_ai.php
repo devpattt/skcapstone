@@ -1,110 +1,166 @@
 <?php
 include 'connection.php';
+include 'session_timeout.php';
 session_start();
 
 if (!isset($_SESSION['login_id'])) {
     echo "<script>alert('You must be logged in to access this program.'); window.location.href='index.php';</script>";
     exit();
 }
-
-
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="icon" type="image/png" href="img/sklogo.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Flashcard & Quiz Generator</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background-color: #f4f4f4; }
-        input, button { padding: 10px; margin: 10px; font-size: 16px; }
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="icon" href="img/sklogo.png" type="image/png">
+    <link rel="stylesheet" href="style/ai.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-        .container { display: flex; flex-direction: column; align-items: center; }
-        .flashcard, .quiz-card {
-            background: white;
-            width: 350px;
-            padding: 20px;
-            margin: 20px;
-            border-radius: 10px;
-            box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-        .back, .quiz-card, .correct-answers {
-            display: none;
-        }
-        .btn-toggle {
-            margin-top: 10px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-    </style>
 </head>
-
 <body>
-    
+
+<div class="main-container">
     <h1>AI-Powered Flashcards & Quizzes</h1>
-    
+
     <form method="POST">
         <input type="text" name="topic" placeholder="Enter a topic..." required autocomplete="off">
-        <button type="submit">Generate</button>
+        <button type="submit" class="btn btn-primary">Confirm</button>
     </form>
 
-    <div class="container">
     <?php
-require 'AI/mistral_ai.php';
+    require 'AI/mistral_ai.php';
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $topic = htmlspecialchars($_POST["topic"]);
+    if ($_SERVER["REQUEST_METHOD"] == "POST") {
+        $topic = htmlspecialchars($_POST["topic"]);
+  
+        $flashcard_front = $topic;
+        $raw_flashcard = generateFlashcard($topic);
 
-    $flashcard_front = $topic;
-    $flashcard_back = generateFlashcard($topic);
+        // Optional cleanup using regex or str_replace
+        $flashcard_back = preg_replace('/\*\*Front:\*\*.*?\*\*Back:\*\*/is', '', $raw_flashcard);
+        $flashcard_back = trim($flashcard_back);
+        
 
-    $quiz_data = generateQuiz($flashcard_back);
-    $quiz_question = $quiz_data["question"];
-    $quiz_choices = $quiz_data["choices"];
-    $correct_answer = $quiz_data["correct_answer"];
+        $quiz_data = generateQuiz($flashcard_back);
+        $quiz_question = $quiz_data["question"];
+        $quiz_choices = $quiz_data["choices"];
+        $correct_answer = $quiz_data["correct_answer"];
 
-    echo "<div class='flashcard' id='flashcard'>
-            <h3>Front:</h3>
-            <p>$flashcard_front</p>
-            <div class='back' id='flashcard-back'>
-                <h3>Back:</h3>
-                <p>$flashcard_back</p>
+        
+
+        echo '
+        <!-- Flashcard Modal -->
+        <div class="modal fade show" id="flashcard" style="display: block;" tabindex="-1" aria-modal="true" role="dialog">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg">
+              <div class="modal-header">
+                <h5 class="modal-title"><strong>Flashcard - ' . htmlspecialchars($flashcard_front) . '</strong></h5>
+                <button type="button" class="btn-close" aria-label="Close" onclick="quitFlashcard()"></button>
+              </div>
+              <div class="modal-body">
+                <p><strong>Definition:</strong> ' . $flashcard_back . '</p>
+              </div>
+              <div class="modal-footer">
+                <button class="btn btn-primary" onclick="proceedToQuiz()">Proceed to Quiz</button>
+                <button class="btn btn-danger" onclick="quitFlashcard()">Quit</button>
+              </div>
             </div>
-          </div>";
-
-    echo "<button class='btn btn-primary btn-toggle' onclick='toggleFlashcard()'>Show Flashcard Back</button>";
-
-    if (!empty($quiz_question)) {
-        echo "<div class='quiz-card' id='quiz-card'>
-                <h3>Quiz on $topic</h3>
-                <p><strong>Question:</strong> $quiz_question</p>
-                <ul>";
+          </div>
+        </div>
+        ';
+    
         
-        foreach ($quiz_choices as $letter => $choice) {
-            echo "<li><input type='radio' name='quiz_answer' value='$letter'> <strong>$letter)</strong> $choice</li>";
-        }
-        
-        echo "</ul>
-                <button class='btn btn-warning btn-toggle' onclick='toggleAnswers()'>Show Answers</button>
-                <div class='correct-answers' id='correct-answers' style='display:none;'>
-                    <h4>Correct Answer:</h4>
-                    <p><strong>$correct_answer</strong></p>
+
+        if (!empty($quiz_question)) {
+            echo '
+            <!-- Quiz Modal -->
+            <div class="modal fade show" id="quiz-card" style="display: none;" tabindex="-1" aria-modal="true" role="dialog">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content shadow-lg">
+                  <div class="modal-header">
+                    <h5 class="modal-title"><strong>Quiz on ' . htmlspecialchars($topic) . '</strong></h5>
+                    <button type="button" class="btn-close" aria-label="Close" onclick="quitFlashcard()"></button>
+                  </div>
+                  <div class="modal-body">
+                    <p><strong>Question:</strong> ' . $quiz_question . '</p>
+                <ul id="quiz-options">';
+                foreach ($quiz_choices as $letter => $choice) {
+                    echo "<li><label><input type='radio' name='quiz_answer' value='$letter'> <strong>$letter)</strong> $choice</label></li>";
+                }
+                echo '
+                </ul>
+                <div class="correct-answers mt-3" id="correct-answers" style="display:none;">
+                <p><strong>Correct Answer:</strong> ' . $correct_answer . '</p>
+                <p id="answer-feedback" class="fw-semibold"></p>
                 </div>
-              </div>";
-        echo "<button class='btn btn-success btn-toggle' onclick='toggleQuiz()'>Show Quiz</button>";
-    }
-}
-?>
+                </div>
+                 <div class="score-summary mt-3" id="score-summary" style="display:none;">
+                        <p><strong>Your Score:</strong> <span id="score-value"></span></p>
+                    </div>
+                <div class="modal-footer">
+                <button class="btn btn-success" onclick="confirmAnswer(\'' . $correct_answer . '\')">Confirm Answer</button>
+             <button type="button"
+        class="btn btn-danger"
+        onclick="quitFlashcard()">
+  Quit
+</button>
+                </div>
 
-<script>
-    function toggleFlashcard() {
-        let back = document.getElementById('flashcard-back');
-        back.style.display = (back.style.display === 'none' || back.style.display === '') ? 'block' : 'none';
+                </div>
+              </div>
+            </div>
+            ';
+            
+        }
     }
+    ?>
+
+<div class="modal fade" id="feedback-modal" tabindex="-1" aria-labelledby="feedbackModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg">
+            <div class="modal-header">
+                <h5 class="modal-title" id="feedbackModalLabel">Provide Feedback</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="save_feedback.php">
+                    <input type="hidden" name="topic" value="<?php echo htmlspecialchars($topic); ?>">
+                    <p>Was this helpful?</p>
+                    <button type="submit" name="feedback" value="Yes" class="btn btn-success">Yes</button>
+                    <button type="submit" name="feedback" value="No" class="btn btn-danger">No</button>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="redirectToCommunityEvents()">Quit Without Feedback</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <a href="Community_Events.php">
+        <button class="btn btn-danger">Back</button>
+    </a>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+        function proceedToQuiz() {
+            document.getElementById('flashcard').style.display = 'none';
+            const quiz = document.getElementById('quiz-card');
+            if (quiz) {
+                quiz.style.display = 'block';
+            }
+        }
+
+        function quitFlashcard() {
+            window.location.href = 'Community_Events.php';
+        }
 
     function toggleQuiz() {
         let quiz = document.getElementById('quiz-card');
@@ -115,10 +171,54 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         let answers = document.getElementById('correct-answers');
         answers.style.display = (answers.style.display === 'none' || answers.style.display === '') ? 'block' : 'none';
     }
+
+    let score = 0;
+let totalQuestions = 1;
+
+function confirmAnswer(correctAnswer) {
+    const selected = document.querySelector('input[name="quiz_answer"]:checked');
+    const feedback = document.getElementById('answer-feedback');
+    const correctBox = document.getElementById('correct-answers');
+    const scoreBox = document.getElementById('score-summary');
+    const scoreValue = document.getElementById('score-value');
+    const feedbackForm = document.getElementById('feedback-form'); // Feedback form element
+
+    if (!selected) {
+        alert('Please select an answer first.');
+        return;
+    }
+
+    const userAnswer = selected.value;
+
+    if (userAnswer === correctAnswer) {
+        feedback.textContent = '✅ Correct!';
+        feedback.style.color = 'green';
+        score++;
+    } else {
+        feedback.textContent = '❌ Incorrect.';
+        feedback.style.color = 'red';
+    }
+
+    // Show correct answer box
+    correctBox.style.display = 'block';
+
+    // Show score immediately
+    scoreValue.textContent = `${score} / ${totalQuestions}`;
+    scoreBox.style.display = 'block';
+
+    // Show feedback form
+    feedbackForm.style.display = 'block';
+
+    // Optionally disable the confirm button to avoid re-submitting
+    document.querySelector('button[onclick^="confirmAnswer"]').disabled = true;
+}
+
+document.getElementById('feedback-modal').addEventListener('shown.bs.modal', function () {
+    console.log('Feedback modal is now visible');
+});
+
+    
 </script>
 
-    <a href="Community_Events.php">
-        <button class="btn btn-danger mt-3"> Back </button>
-    </a>
 </body>
 </html>
