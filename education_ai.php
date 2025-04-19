@@ -19,18 +19,41 @@ if (!isset($_SESSION['login_id'])) {
     <link rel="icon" href="img/sklogo.png" type="image/png">
     <link rel="stylesheet" href="style/ai.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
 </head>
+    
 <body>
 
+<div id="notification" class="notification" style="display: none;"></div>
+<?php
+if (isset($_SESSION['notification'])) {
+    echo '<script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const notification = document.getElementById("notification");
+            notification.textContent = "' . $_SESSION['notification'] . '";
+            notification.style.display = "block";
+            setTimeout(() => {
+                notification.style.opacity = "1";
+                setTimeout(() => {
+                    notification.style.opacity = "0";
+                    setTimeout(() => {
+                        notification.style.display = "none";
+                    }, 500); // Match fade-out duration
+                }, 3000); // Display for 3 seconds
+            }, 100);
+        });
+    </script>';
+    unset($_SESSION['notification']);
+}
+?>
 <div class="main-container">
+    
     <h1>AI-Powered Flashcards & Quizzes</h1>
 
-    <form method="POST">
+    <form method="POST" onsubmit="return showSpinner()">
         <input type="text" name="topic" placeholder="Enter a topic..." required autocomplete="off">
         <button type="submit" class="btn btn-primary">Confirm</button>
     </form>
-
+    
     <?php
     require 'AI/mistral_ai.php';
 
@@ -119,6 +142,11 @@ if (!isset($_SESSION['login_id'])) {
     }
     ?>
 
+<div id="loading-spinner">
+    <div class="spinner"></div>
+</div>
+
+<!-- Feedback Modal -->
 <div class="modal fade" id="feedback-modal" tabindex="-1" aria-labelledby="feedbackModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content shadow-lg">
@@ -135,18 +163,15 @@ if (!isset($_SESSION['login_id'])) {
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-danger" onclick="redirectToCommunityEvents()">Quit Without Feedback</button>
             </div>
         </div>
     </div>
 </div>
-
     <a href="Community_Events.php">
         <button class="btn btn-danger">Back</button>
     </a>
 </div>
-
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
@@ -181,7 +206,6 @@ function confirmAnswer(correctAnswer) {
     const correctBox = document.getElementById('correct-answers');
     const scoreBox = document.getElementById('score-summary');
     const scoreValue = document.getElementById('score-value');
-    const feedbackForm = document.getElementById('feedback-form'); // Feedback form element
 
     if (!selected) {
         alert('Please select an answer first.');
@@ -202,22 +226,41 @@ function confirmAnswer(correctAnswer) {
     // Show correct answer box
     correctBox.style.display = 'block';
 
-    // Show score immediately
+    // Show score
     scoreValue.textContent = `${score} / ${totalQuestions}`;
     scoreBox.style.display = 'block';
 
-    // Show feedback form
-    feedbackForm.style.display = 'block';
+    // Delay the feedback modal by 2 seconds (2000 milliseconds)
+    setTimeout(function() {
+        const feedbackModal = new bootstrap.Modal(document.getElementById('feedback-modal'));
+        feedbackModal.show();
+    }, 2000); // 2000 ms = 2 seconds
 
-    // Optionally disable the confirm button to avoid re-submitting
+    function redirectToCommunityEvents() {
+    // Close the feedback modal if it's open
+    const feedbackModal = new bootstrap.Modal(document.getElementById('feedback-modal'));
+    feedbackModal.hide();  // This hides the modal
+
+    // Redirect to the Community_Events page
+    window.location.href = 'education_ai.php';  // Adjust this URL if necessary
+}
+
+    // Disable confirm button to prevent multiple submissions
     document.querySelector('button[onclick^="confirmAnswer"]').disabled = true;
 }
 
-document.getElementById('feedback-modal').addEventListener('shown.bs.modal', function () {
-    console.log('Feedback modal is now visible');
-});
+document.getElementById("loading-spinner").style.display = "flex";
+document.getElementById("loading-spinner").style.display = "none";
 
-    
+function showSpinner() {
+    document.getElementById("loading-spinner").style.display = "flex";
+    return true; // Allow the form to submit
+}
+window.onload = function() {
+    document.getElementById("loading-spinner").style.display = "none";
+};
+
+
 </script>
 
 </body>

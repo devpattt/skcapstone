@@ -23,7 +23,15 @@ body {
     border-radius: 12px;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
     background-color: #ffffff;
+    white-space: nowrap; /* Prevent text wrapping */
+    overflow-x: auto; /* Add horizontal scrolling */
+    overflow-y: hidden; /* Prevent vertical scrolling */
+    max-width: 100%; /* Ensure it fits within the container */
+    word-wrap: break-word; /* Break long words */
+    word-break: break-word; /* Ensure long words break properly */
+    min-width: 300px; /* Ensure container has a minimum width */
 }
+
 
 h1 {
     text-align: center;
@@ -104,4 +112,46 @@ li {
         color: #198754;
     }
 
-
+    
+    #loading-spinner {
+        display: none; /* Default hidden */
+        justify-content: center;
+        align-items: center;
+        position: fixed;
+        z-index: 9999;
+        background-color: rgba(0,0,0,0.5);
+        width: 100vw;
+        height: 100vh;
+        top: 0;
+        left: 0;
+    }
+    
+    .spinner {
+        width: 60px;
+        height: 60px;
+        border: 8px solid #f3f3f3;
+        border-top: 8px solid #007bff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Notification Styles */
+    .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background-color: #28a745; /* Green for success */
+        color: white;
+        padding: 15px 20px;
+        border-radius: 5px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        font-family: 'Poppins', sans-serif;
+        font-size: 14px;
+        opacity: 0;
+        transition: opacity 0.5s ease-in-out;
+        z-index: 1000;
+    }

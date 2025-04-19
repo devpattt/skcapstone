@@ -11,14 +11,35 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['feedback'], $_POST['to
     $stmt->bind_param("ss", $topic, $feedback);
 
     if ($stmt->execute()) {
-        echo "<script>alert('Thank you for your feedback!'); window.location.href='education_ai.php';</script>";
+        // If feedback is "No", regenerate a detailed flashcard
+        if ($feedback == "No") {
+            require 'AI/mistral_ai.php'; // Include the AI logic
+            $new_flashcard = generateFlashcard($topic); // Generate a new detailed flashcard
+
+            // Store the new flashcard in the session or database for display
+            $_SESSION['new_flashcard'] = $new_flashcard;
+
+            // Set notification message
+            $_SESSION['notification'] = "Thank you for your feedback!";
+        } else {
+            // Set notification message
+            $_SESSION['notification'] = "Thank you for your feedback!";
+        }
+
+        // Redirect back to the main page
+        header("Location: education_ai.php");
+        exit();
     } else {
-        echo "<script>alert('Error saving feedback.'); window.location.href='education_ai.php';</script>";
+        $_SESSION['notification'] = "Error saving feedback.";
+        header("Location: education_ai.php");
+        exit();
     }
 
     $stmt->close();
     $conn->close();
 } else {
-    echo "<script>alert('Invalid request.'); window.location.href='education_ai.php';</script>";
+    $_SESSION['notification'] = "Invalid request.";
+    header("Location: education_ai.php");
+    exit();
 }
 ?>
